@@ -18,3 +18,10 @@ func ResponseError(writer http.ResponseWriter, status int, message string) {
 		"error": message,
 	})
 }
+
+func ResponseValidationError(writer http.ResponseWriter, status int, errors map[string]string) {
+	ResponseJson(writer, status, map[string]any{
+		"message": "validation failed",
+		"errors":  errors,
+	})
+}

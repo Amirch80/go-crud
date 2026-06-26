@@ -58,6 +58,17 @@ func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http
 		return
 	}
 
+	validationErrors, err := pkg.Validate(task)
+	if err != nil {
+		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if validationErrors != nil {
+		pkg.ResponseValidationError(writer, http.StatusUnprocessableEntity, validationErrors)
+		return
+	}
+
 	created, err := taskHandler.taskService.Create(request.Context(), task)
 	if err != nil {
 		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
@@ -80,6 +91,17 @@ func (taskHandler *TaskHandler) Update(writer http.ResponseWriter, request *http
 		return
 	}
 	task.Id = id
+
+	validationErrors, err := pkg.Validate(task)
+	if err != nil {
+		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if validationErrors != nil {
+		pkg.ResponseValidationError(writer, http.StatusUnprocessableEntity, validationErrors)
+		return
+	}
 
 	if err := taskHandler.taskService.Update(request.Context(), task); err != nil {
 		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
