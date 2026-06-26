@@ -6,43 +6,46 @@ import (
 )
 
 type RouteGroup struct {
-	prefix      string
-	multiplexer *http.ServeMux
+	mux    *http.ServeMux
+	prefix string
 }
 
-func newRouteGroup(multiplexer *http.ServeMux, prefix string) *RouteGroup {
+func newRouteGroup(mux *http.ServeMux, prefix string) *RouteGroup {
 	return &RouteGroup{
-		prefix,
-		multiplexer,
+		mux:    mux,
+		prefix: prefix,
 	}
 }
 
-func (routeGroup *RouteGroup) GET(path string, handler http.HandlerFunc) {
-	fullPath := routeGroup.prefix + path
-	routeGroup.multiplexer.HandleFunc("GET "+fullPath, handler)
+func (group *RouteGroup) handle(method, path string, handler http.HandlerFunc) {
+	group.mux.HandleFunc(method+" "+group.prefix+path, handler)
 }
-func (routeGroup *RouteGroup) POST(path string, handler http.HandlerFunc) {
-	fullPath := routeGroup.prefix + path
-	routeGroup.multiplexer.HandleFunc("POST "+fullPath, handler)
+
+func (group *RouteGroup) GET(path string, handler http.HandlerFunc) {
+	group.handle(http.MethodGet, path, handler)
 }
-func (routeGroup *RouteGroup) PUT(path string, handler http.HandlerFunc) {
-	fullPath := routeGroup.prefix + path
-	routeGroup.multiplexer.HandleFunc("PUT "+fullPath, handler)
+
+func (group *RouteGroup) POST(path string, handler http.HandlerFunc) {
+	group.handle(http.MethodPost, path, handler)
 }
-func (routeGroup *RouteGroup) DELETE(path string, handler http.HandlerFunc) {
-	fullPath := routeGroup.prefix + path
-	routeGroup.multiplexer.HandleFunc("DELETE "+fullPath, handler)
+
+func (group *RouteGroup) PUT(path string, handler http.HandlerFunc) {
+	group.handle(http.MethodPut, path, handler)
+}
+
+func (group *RouteGroup) DELETE(path string, handler http.HandlerFunc) {
+	group.handle(http.MethodDelete, path, handler)
 }
 
 func Routes(container *container.Container) *http.ServeMux {
 	multiplexer := http.NewServeMux()
 
-	apiRouteGroup := newRouteGroup(multiplexer, "/api")
-	apiRouteGroup.GET("/all-tasks", container.TaskHandler.All)
-	apiRouteGroup.GET("/show-task/{id}", container.TaskHandler.Show)
-	apiRouteGroup.POST("/create-task", container.TaskHandler.Create)
-	apiRouteGroup.PUT("/update-task/{id}", container.TaskHandler.Update)
-	apiRouteGroup.DELETE("/delete-task/{id}", container.TaskHandler.Delete)
+	api := newRouteGroup(multiplexer, "/api")
+	api.GET("/tasks", container.TaskHandler.All)
+	api.GET("/tasks/{id}", container.TaskHandler.Show)
+	api.POST("/tasks", container.TaskHandler.Create)
+	api.PUT("/tasks/{id}", container.TaskHandler.Update)
+	api.DELETE("/tasks/{id}", container.TaskHandler.Delete)
 
 	return multiplexer
 }

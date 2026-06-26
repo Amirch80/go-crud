@@ -38,7 +38,7 @@ func TestAllTasks(t *testing.T) {
 		}
 	}
 
-	response, err := http.Get(testServer.URL + "/api/all-tasks")
+	response, err := http.Get(testServer.URL + "/api/tasks")
 
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -78,7 +78,7 @@ func TestCreateTask(t *testing.T) {
 	}
 
 	response, err := http.Post(
-		testServer.URL+"/api/create-task",
+		testServer.URL+"/api/tasks",
 		"application/json",
 		bytes.NewReader(jsonBody),
 	)
@@ -140,7 +140,7 @@ func TestShowTask(t *testing.T) {
 		t.Fatalf("failed to insert task: %v", err)
 	}
 
-	response, _ := http.Get(testServer.URL + "/api/show-task/" + strconv.Itoa(id))
+	response, _ := http.Get(testServer.URL + "/api/tasks/" + strconv.Itoa(id))
 	defer response.Body.Close()
 
 	var task models.Task
@@ -180,7 +180,7 @@ func TestUpdateTask(t *testing.T) {
 	bodyJson, _ := json.Marshal(body)
 
 	request, _ := http.NewRequest(http.MethodPut,
-		testServer.URL+"/api/update-task/"+strconv.Itoa(id),
+		testServer.URL+"/api/tasks/"+strconv.Itoa(id),
 		bytes.NewReader(bodyJson),
 	)
 
@@ -227,7 +227,7 @@ func TestDeleteTask(t *testing.T) {
 	testDB.QueryRow(context.Background(), sql, args...).Scan(&id)
 
 	request, _ := http.NewRequest(http.MethodDelete,
-		testServer.URL+"/api/delete-task/"+strconv.Itoa(id),
+		testServer.URL+"/api/tasks/"+strconv.Itoa(id),
 		nil,
 	)
 
