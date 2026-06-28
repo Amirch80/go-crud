@@ -73,7 +73,7 @@ func TestCreateTask(t *testing.T) {
 	task := models.Task{
 		Title:       pkg.RandomString(10),
 		Description: pkg.RandomString(50),
-		Status:      models.Todo,
+		Status:      6,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}

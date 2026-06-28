@@ -8,13 +8,15 @@ import (
 	"crud-task/internal/routes"
 	"crud-task/internal/services"
 	"crud-task/pkg"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
+	"crud-task/pkg/logger"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 var testDB *pgxpool.Pool
@@ -27,28 +29,37 @@ func TestMain(m *testing.M) {
 		log.Fatal(err.Error())
 	}
 
-	ctx := context.Background()
+	closeLogs, err := logger.Init()
+	if err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
 
+	ctx := context.Background()
 	dsn := pkg.MakeDSN()
 
 	db, err := pgxpool.New(ctx, dsn)
-
 	if err != nil {
+		closeLogs()
 		panic(err)
 	}
-
 	testDB = db
 
-	db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`)
+	if _, err := db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`); err != nil {
+		closeLogs()
+		db.Close()
+		log.Fatalf("failed to truncate tasks: %v", err)
+	}
 
 	app := setupApp(db)
-
 	testServer = httptest.NewServer(app)
 
-	m.Run()
+	code := m.Run()
 
 	testServer.Close()
 	db.Close()
+	closeLogs()
+
+	os.Exit(code)
 }
 
 func setupApp(dbPool *pgxpool.Pool) http.Handler {

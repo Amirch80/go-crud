@@ -5,9 +5,10 @@ import (
 	"crud-task/internal/container"
 	"crud-task/internal/database"
 	"crud-task/internal/routes"
+	"crud-task/pkg/logger"
 	"errors"
-	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,41 +17,65 @@ import (
 )
 
 func main() {
-	dbPool := database.Connect()
+	closeLogs, err := logger.Init()
+	if err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
 
+	exitCode := 0
+	defer func() {
+		closeLogs()
+		os.Exit(exitCode)
+	}()
+
+	if err := run(); err != nil {
+		logger.CustomLogger.Error("application error", "error", err.Error())
+		exitCode = 1
+		return
+	}
+}
+
+func run() error {
+	dbPool, err := database.Connect()
+	if err != nil {
+		return err
+	}
 	if dbPool == nil {
-		log.Fatal("dbPool is nil — Connect() returned nothing")
+		return errors.New("dbPool is nil — Connect() returned nothing")
 	}
 	defer database.Close()
 
 	appContainer := container.New(dbPool)
-	handler := routes.Routes(appContainer)
-
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: handler,
+		Handler: routes.Routes(appContainer),
 	}
 
+	serverErr := make(chan error, 1)
 	go func() {
-		fmt.Println("Server started on :8080")
+		logger.CustomLogger.Info("server started", slog.String("address", server.Addr))
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			fmt.Printf("Error starting server: %s\n", err)
-			os.Exit(1)
+			serverErr <- err
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	<-quit
-	fmt.Println("Shutting down server...")
+	select {
+	case err := <-serverErr:
+		return err
+	case <-quit:
+		logger.CustomLogger.Info("shutting down server...")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("Shutdown error: %s\n", err)
+		return err
 	}
 
-	fmt.Println("Server exited properly")
+	logger.CustomLogger.Info("server exited properly")
+	return nil
 }

@@ -3,8 +3,8 @@ package database
 import (
 	"context"
 	"crud-task/pkg"
+	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
 	"sync"
 )
 
@@ -13,22 +13,27 @@ var (
 	once   sync.Once
 )
 
-func Connect() *pgxpool.Pool {
+func Connect() (*pgxpool.Pool, error) {
+	var initError error
 	once.Do(func() {
 		dsn := pkg.MakeDSN()
 		var err error
-		dbPool, err = pgxpool.New(context.Background(), dsn)
+		pool, err := pgxpool.New(context.Background(), dsn)
 
 		if err != nil {
-			log.Fatal(err)
+			initError = fmt.Errorf("create db pool: %w", err)
+			return
 		}
 
-		if err = dbPool.Ping(context.Background()); err != nil {
-			log.Fatal(err)
+		if err = pool.Ping(context.Background()); err != nil {
+			initError = fmt.Errorf("ping db: %w", err)
+			pool.Close()
+			return
 		}
+		dbPool = pool
 	})
 
-	return dbPool
+	return dbPool, initError
 }
 
 func Close() {

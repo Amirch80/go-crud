@@ -2,9 +2,10 @@ package pkg
 
 import (
 	"crud-task/pkg/appError"
+	"crud-task/pkg/logger"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -39,12 +40,22 @@ func ResponseFromError(writer http.ResponseWriter, error error) {
 	var appErr *appError.AppError
 	if errors.As(error, &appErr) {
 		if appErr.Status >= 500 {
-			log.Printf("internal error: %v", appErr.Err)
+			logger.CustomLogger.Error(
+				"request failed",
+				slog.String("message", appErr.Message),
+				slog.String("error", error.Error()),
+				slog.Int("status", appErr.Status),
+			)
 		}
 		ResponseError(writer, appErr.Status, appErr.Message)
 		return
 	}
 
-	log.Printf("unhandled error: %v", error)
+	logger.CustomLogger.Error(
+		"unhandled error",
+		slog.String("error", error.Error()),
+		slog.Int("status", http.StatusInternalServerError),
+	)
+
 	ResponseError(writer, http.StatusInternalServerError, "internal server error")
 }
