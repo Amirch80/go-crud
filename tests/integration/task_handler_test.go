@@ -49,14 +49,21 @@ func TestAllTasks(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.StatusCode)
 	}
 
-	var tasks []models.Task
-	err = json.NewDecoder(response.Body).Decode(&tasks)
+	type TasksResponse struct {
+		Data struct {
+			Tasks []models.Task `json:"tasks"`
+		} `json:"data"`
+	}
+
+	var tasksResponse TasksResponse
+
+	err = json.NewDecoder(response.Body).Decode(&tasksResponse)
 	if err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(tasks) < count {
-		t.Fatalf("expected at least %d tasks, got %d", count, len(tasks))
+	if len(tasksResponse.Data.Tasks) < count {
+		t.Fatalf("expected at least %d tasks, got %d", count, len(tasksResponse.Data.Tasks))
 	}
 }
 
@@ -92,10 +99,16 @@ func TestCreateTask(t *testing.T) {
 		t.Fatalf("expected 201, got %d", response.StatusCode)
 	}
 
-	var createdTask models.Task
-	json.NewDecoder(response.Body).Decode(&createdTask)
+	type TaskResponse struct {
+		Data struct {
+			Task models.Task `json:"task"`
+		} `json:"data"`
+	}
 
-	if createdTask.Id == 0 {
+	var taskResponse TaskResponse
+	json.NewDecoder(response.Body).Decode(&taskResponse)
+
+	if taskResponse.Data.Task.Id == 0 {
 		t.Fatal("id not generated")
 	}
 
@@ -143,10 +156,16 @@ func TestShowTask(t *testing.T) {
 	response, _ := http.Get(testServer.URL + "/api/tasks/" + strconv.Itoa(id))
 	defer response.Body.Close()
 
-	var task models.Task
-	json.NewDecoder(response.Body).Decode(&task)
+	type TaskResponse struct {
+		Data struct {
+			Task models.Task `json:"task"`
+		} `json:"data"`
+	}
 
-	if task.Id != int64(id) {
+	var taskResponse TaskResponse
+	json.NewDecoder(response.Body).Decode(&taskResponse)
+
+	if taskResponse.Data.Task.Id != int64(id) {
 		t.Fatal("wrong task")
 	}
 }

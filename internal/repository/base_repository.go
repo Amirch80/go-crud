@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	"github.com/jackc/pgx/v5"
@@ -26,10 +25,23 @@ func NewBaseRepository(pool *pgxpool.Pool) *BaseRepository {
 	return &BaseRepository{DBPool: pool}
 }
 
-func (b *BaseRepository) WithTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := b.DBPool.Begin(ctx)
+func (base *BaseRepository) RunInTx(context context.Context, callback func(db DBTX) error) error {
+	tx, err := base.DBPool.Begin(context)
 	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
+		return MapError(err)
 	}
-	return tx, nil
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback(context)
+			panic(p)
+		} else if err != nil {
+			_ = tx.Rollback(context)
+		} else {
+			err = tx.Commit(context)
+		}
+	}()
+
+	err = callback(tx)
+	return MapError(err)
 }

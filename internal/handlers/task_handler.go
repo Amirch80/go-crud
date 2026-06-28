@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"crud-task/internal/dto"
 	"crud-task/internal/models"
 	"crud-task/internal/services"
 	"crud-task/pkg"
 	"encoding/json"
-	"errors"
-	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strconv"
 )
@@ -22,12 +21,19 @@ func NewTaskHandler(taskService *services.TaskService) *TaskHandler {
 }
 
 func (taskHandler *TaskHandler) All(writer http.ResponseWriter, request *http.Request) {
+	response := pkg.Response{}
+
 	tasks, err := taskHandler.taskService.All(request.Context())
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseFromError(writer, err)
 		return
 	}
-	pkg.ResponseJson(writer, http.StatusOK, tasks)
+	response = pkg.Response{
+		Data: map[string][]models.Task{
+			"tasks": tasks,
+		},
+	}
+	pkg.ResponseJson(writer, http.StatusOK, &response)
 }
 
 func (taskHandler *TaskHandler) Show(writer http.ResponseWriter, request *http.Request) {
@@ -35,20 +41,21 @@ func (taskHandler *TaskHandler) Show(writer http.ResponseWriter, request *http.R
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusNotFound, "Task not found")
+		pkg.ResponseError(writer, http.StatusNotFound, "task not found")
 		return
 	}
 
 	task, err := taskHandler.taskService.Show(request.Context(), id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			pkg.ResponseError(writer, http.StatusNotFound, "Task not found")
-			return
-		}
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseFromError(writer, err)
 		return
 	}
-	pkg.ResponseJson(writer, http.StatusOK, task)
+	response := pkg.Response{
+		Data: map[string]models.Task{
+			"task": task,
+		},
+	}
+	pkg.ResponseJson(writer, http.StatusOK, &response)
 }
 
 func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http.Request) {
@@ -60,7 +67,7 @@ func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http
 
 	validationErrors, err := pkg.Validate(task)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseError(writer, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -71,30 +78,35 @@ func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http
 
 	created, err := taskHandler.taskService.Create(request.Context(), task)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseFromError(writer, err)
 		return
 	}
-	pkg.ResponseJson(writer, http.StatusCreated, created)
+	response := pkg.Response{
+		Data: map[string]models.Task{
+			"task": created,
+		},
+	}
+	pkg.ResponseJson(writer, http.StatusCreated, &response)
 }
 
 func (taskHandler *TaskHandler) Update(writer http.ResponseWriter, request *http.Request) {
 	idStr := request.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusBadRequest, "Invalid id")
+		pkg.ResponseError(writer, http.StatusBadRequest, "invalid id")
 		return
 	}
 
 	var task models.Task
 	if err := json.NewDecoder(request.Body).Decode(&task); err != nil {
-		pkg.ResponseError(writer, http.StatusBadRequest, "Invalid body")
+		pkg.ResponseError(writer, http.StatusBadRequest, "invalid body")
 		return
 	}
 	task.Id = id
 
 	validationErrors, err := pkg.Validate(task)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseError(writer, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -104,22 +116,27 @@ func (taskHandler *TaskHandler) Update(writer http.ResponseWriter, request *http
 	}
 
 	if err := taskHandler.taskService.Update(request.Context(), task); err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseFromError(writer, err)
 		return
 	}
-	pkg.ResponseJson(writer, http.StatusOK, task)
+	response := pkg.Response{
+		Data: map[string]models.Task{
+			"task": task,
+		},
+	}
+	pkg.ResponseJson(writer, http.StatusOK, &response)
 }
 
 func (taskHandler *TaskHandler) Delete(writer http.ResponseWriter, request *http.Request) {
 	idStr := request.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		pkg.ResponseError(writer, http.StatusBadRequest, "Invalid id")
+		pkg.ResponseError(writer, http.StatusBadRequest, "invalid id")
 		return
 	}
 
 	if err := taskHandler.taskService.Delete(request.Context(), id); err != nil {
-		pkg.ResponseError(writer, http.StatusInternalServerError, err.Error())
+		pkg.ResponseFromError(writer, err)
 		return
 	}
 	pkg.ResponseJson(writer, http.StatusNoContent, nil)
@@ -127,5 +144,10 @@ func (taskHandler *TaskHandler) Delete(writer http.ResponseWriter, request *http
 
 func (taskHandler *TaskHandler) StatusOptions(writer http.ResponseWriter, _ *http.Request) {
 	options := taskHandler.taskService.GetStatusOptions()
-	pkg.ResponseJson(writer, http.StatusOK, options)
+	response := pkg.Response{
+		Data: map[string][]dto.StatusOption{
+			"statuses": options,
+		},
+	}
+	pkg.ResponseJson(writer, http.StatusOK, &response)
 }

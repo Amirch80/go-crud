@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"crud-task/internal/models"
+	"crud-task/pkg/appError"
 	"fmt"
 	"github.com/doug-martin/goqu/v9"
+	"net/http"
 	"time"
 )
 
@@ -27,7 +29,7 @@ func (taskRepository *TaskRepository) All(context context.Context) ([]models.Tas
 	rows, err := taskRepository.DBPool.Query(context, sql, args...)
 
 	if err != nil {
-		return nil, fmt.Errorf("query all tasks: %w", err)
+		return nil, MapError(err)
 	}
 
 	defer rows.Close()
@@ -40,15 +42,12 @@ func (taskRepository *TaskRepository) All(context context.Context) ([]models.Tas
 			&task.Id, &task.Title, &task.Description,
 			&task.Status, &task.CreatedAt, &task.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan task: %w", err)
+			return nil, MapError(err)
 		}
 		tasks = append(tasks, task)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate tasks: %w", err)
-	}
-	return tasks, nil
+	return tasks, MapError(rows.Err())
 }
 
 func (taskRepository *TaskRepository) Show(ctx context.Context, id int64) (models.Task, error) {
@@ -68,10 +67,8 @@ func (taskRepository *TaskRepository) Show(ctx context.Context, id int64) (model
 		&task.Id, &task.Title, &task.Description,
 		&task.Status, &task.CreatedAt, &task.UpdatedAt,
 	)
-	if err != nil {
-		return models.Task{}, fmt.Errorf("show task: %w", err)
-	}
-	return task, nil
+
+	return task, MapError(err)
 }
 
 func (taskRepository *TaskRepository) Create(context context.Context, query DBTX, task models.Task) (models.Task, error) {
@@ -93,7 +90,7 @@ func (taskRepository *TaskRepository) Create(context context.Context, query DBTX
 
 	err = query.QueryRow(context, sql, args...).Scan(&task.Id, &task.CreatedAt, &task.UpdatedAt)
 	if err != nil {
-		return models.Task{}, fmt.Errorf("create task: %w", err)
+		return models.Task{}, err
 	}
 	return task, nil
 }
@@ -117,15 +114,15 @@ func (taskRepository *TaskRepository) Update(context context.Context, query DBTX
 
 	tag, err := query.Exec(context, sql, args...)
 	if err != nil {
-		return fmt.Errorf("update task: %w", err)
+		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("task with id %d not found", task.Id)
+		return appError.New(http.StatusNotFound, appError.AppErrNotFound, fmt.Sprintf("task with id %d not found", task.Id), nil)
 	}
 	return nil
 }
 
-func (taskRepository *TaskRepository) Delete(context context.Context, q DBTX, id int64) error {
+func (taskRepository *TaskRepository) Delete(context context.Context, query DBTX, id int64) error {
 	sql, args, err := dialect.
 		Delete("tasks").
 		Where(goqu.C("id").Eq(id)).
@@ -135,12 +132,12 @@ func (taskRepository *TaskRepository) Delete(context context.Context, q DBTX, id
 		return fmt.Errorf("build delete task query: %w", err)
 	}
 
-	tag, err := q.Exec(context, sql, args...)
+	tag, err := query.Exec(context, sql, args...)
 	if err != nil {
-		return fmt.Errorf("delete task: %w", err)
+		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("task with id %d not found", id)
+		return appError.New(http.StatusNotFound, appError.AppErrNotFound, fmt.Sprintf("task with id %d not found", id), nil)
 	}
 	return nil
 }
