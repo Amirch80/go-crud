@@ -45,7 +45,8 @@ func Routes(container *container.Container) *http.ServeMux {
 	api.GET("/tasks/{id}", container.TaskHandler.Show)
 	api.POST("/tasks", container.TaskHandler.Create)
 	api.PUT("/tasks/{id}", container.TaskHandler.Update)
-	api.DELETE("/tasks/{id}", container.TaskHandler.Delete)
+	api.DELETE("/tasks/{id}", container.TaskHandler.SoftDelete)
+	api.DELETE("/tasks/{id}/force", container.TaskHandler.Delete)
 
 	return multiplexer
 }

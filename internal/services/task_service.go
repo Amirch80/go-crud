@@ -50,6 +50,13 @@ func (taskService *TaskService) Delete(context context.Context, id int64) (err e
 	return err
 }
 
+func (taskService *TaskService) SoftDelete(context context.Context, id int64) (err error) {
+	err = taskService.taskRepository.RunInTx(context, func(query repository.DBTX) error {
+		return taskService.taskRepository.SoftDelete(context, query, id)
+	})
+	return err
+}
+
 func (taskService *TaskService) GetStatusOptions() []dto.StatusOption {
 	return []dto.StatusOption{
 		{Value: int(models.Todo), Label: models.Todo.String(), Slug: models.Todo.Slug()},

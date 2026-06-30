@@ -25,7 +25,10 @@ func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery
 	query := dialect.From("tasks")
 
 	if listTaskQuery.Status != nil {
-		query = query.Where(goqu.C("status").Eq(listTaskQuery.Status))
+		query = query.Where(
+			goqu.C("status").Eq(listTaskQuery.Status),
+			goqu.C("deleted_at").IsNull(),
+		)
 	}
 
 	countSql, countArgs, err := query.Select(goqu.COUNT("id").As("total")).Prepared(true).ToSQL()
@@ -45,7 +48,8 @@ func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery
 
 	offset := (listTaskQuery.Page - 1) * listTaskQuery.PerPage
 
-	sql, args, err := query.Offset(uint(offset)).
+	sql, args, err := query.Select("id", "title", "description", "status", "created_at", "updated_at").
+		Offset(uint(offset)).
 		Limit(uint(listTaskQuery.PerPage)).
 		Prepared(true).
 		ToSQL()
@@ -81,8 +85,10 @@ func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery
 func (taskRepository *TaskRepository) Show(ctx context.Context, id int64) (models.Task, error) {
 	sql, args, err := dialect.
 		From("tasks").
+		Select("id", "title", "description", "status", "created_at", "updated_at").
 		Where(
 			goqu.C("id").Eq(id),
+			goqu.C("deleted_at").IsNull(),
 		).
 		Prepared(true).
 		ToSQL()
@@ -132,7 +138,10 @@ func (taskRepository *TaskRepository) Update(context context.Context, query DBTX
 			"status":      task.Status,
 			"updated_at":  time.Now(),
 		}).
-		Where(goqu.C("id").Eq(task.Id)).
+		Where(
+			goqu.C("id").Eq(task.Id),
+			goqu.C("deleted_at").IsNull(),
+		).
 		Prepared(true).
 		ToSQL()
 
@@ -150,10 +159,37 @@ func (taskRepository *TaskRepository) Update(context context.Context, query DBTX
 	return nil
 }
 
+// Delete TODO this action requires delete permission
 func (taskRepository *TaskRepository) Delete(context context.Context, query DBTX, id int64) error {
 	sql, args, err := dialect.
 		Delete("tasks").
 		Where(goqu.C("id").Eq(id)).
+		Prepared(true).
+		ToSQL()
+	if err != nil {
+		return fmt.Errorf("build delete task query: %w", err)
+	}
+
+	tag, err := query.Exec(context, sql, args...)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return appError.New(http.StatusNotFound, appError.AppErrNotFound, fmt.Sprintf("task with id %d not found", id), nil)
+	}
+	return nil
+}
+
+func (taskRepository *TaskRepository) SoftDelete(context context.Context, query DBTX, id int64) error {
+	sql, args, err := dialect.
+		Update("tasks").
+		Where(
+			goqu.C("id").Eq(id),
+			goqu.C("deleted_at").IsNull(),
+		).
+		Set(goqu.Record{
+			"deleted_at": time.Now(),
+		}).
 		Prepared(true).
 		ToSQL()
 	if err != nil {

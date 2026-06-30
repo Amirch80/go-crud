@@ -158,6 +158,21 @@ func (taskHandler *TaskHandler) Delete(writer http.ResponseWriter, request *http
 	pkg.ResponseJson(writer, http.StatusNoContent, nil)
 }
 
+func (taskHandler *TaskHandler) SoftDelete(writer http.ResponseWriter, request *http.Request) {
+	idStr := request.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		pkg.ResponseError(writer, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	if err := taskHandler.taskService.SoftDelete(request.Context(), id); err != nil {
+		pkg.ResponseFromError(writer, err)
+		return
+	}
+	pkg.ResponseJson(writer, http.StatusNoContent, nil)
+}
+
 func (taskHandler *TaskHandler) StatusOptions(writer http.ResponseWriter, _ *http.Request) {
 	options := taskHandler.taskService.GetStatusOptions()
 	response := pkg.Response{

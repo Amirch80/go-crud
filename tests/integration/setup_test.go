@@ -47,12 +47,12 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	testDB = db
-	//
-	//if _, err := db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`); err != nil {
-	//	closeLogs()
-	//	db.Close()
-	//	log.Fatalf("failed to truncate tasks: %v", err)
-	//}
+
+	if _, err := db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`); err != nil {
+		closeLogs()
+		db.Close()
+		log.Fatalf("failed to truncate tasks: %v", err)
+	}
 
 	app := setupApp(db)
 	testServer = httptest.NewServer(app)

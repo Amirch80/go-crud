@@ -251,7 +251,7 @@ func TestDeleteTask(t *testing.T) {
 	testDB.QueryRow(context.Background(), sql, args...).Scan(&id)
 
 	request, _ := http.NewRequest(http.MethodDelete,
-		testServer.URL+"/api/tasks/"+strconv.Itoa(id),
+		testServer.URL+"/api/tasks/"+strconv.Itoa(id)+"/force",
 		nil,
 	)
 
@@ -262,6 +262,55 @@ func TestDeleteTask(t *testing.T) {
 		From("tasks").
 		Select(goqu.COUNT("*").As("count")).
 		Where(goqu.C("id").Eq(id)).
+		Prepared(true).
+		ToSQL()
+
+	err := testDB.QueryRow(context.Background(), sqlDelete, argsDelete...).Scan(&count)
+
+	if err != nil {
+		t.Fatalf("scan error: %v", err)
+	}
+
+	if count != 0 {
+		t.Fatal("not deleted")
+	}
+}
+
+func TestSoftDeleteTask(t *testing.T) {
+	dialect := goqu.Dialect("postgres")
+
+	var id int
+
+	sql, args, _ := dialect.
+		Insert("tasks").
+		Rows(goqu.Record{
+			"title":       pkg.RandomString(10),
+			"description": pkg.RandomString(100),
+			"status":      models.Todo,
+			"created_at":  goqu.L("NOW()"),
+			"updated_at":  goqu.L("NOW()"),
+		}).
+		Returning("id").
+		Prepared(true).
+		ToSQL()
+
+	testDB.QueryRow(context.Background(), sql, args...).Scan(&id)
+
+	request, _ := http.NewRequest(http.MethodDelete,
+		testServer.URL+"/api/tasks/"+strconv.Itoa(id),
+		nil,
+	)
+
+	http.DefaultClient.Do(request)
+
+	var count int
+	sqlDelete, argsDelete, _ := dialect.
+		From("tasks").
+		Select(goqu.COUNT("*").As("count")).
+		Where(
+			goqu.C("id").Eq(id),
+			goqu.C("deleted_at").IsNull(),
+		).
 		Prepared(true).
 		ToSQL()
 
