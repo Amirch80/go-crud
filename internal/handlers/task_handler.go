@@ -23,16 +23,19 @@ func NewTaskHandler(taskService *services.TaskService) *TaskHandler {
 func (taskHandler *TaskHandler) All(writer http.ResponseWriter, request *http.Request) {
 	response := pkg.Response{}
 
-	tasks, err := taskHandler.taskService.All(request.Context())
+	listTaskQuery := dto.ConvertQueryToListTaskQuery(request.URL.Query())
+	tasks, total, err := taskHandler.taskService.All(request.Context(), listTaskQuery)
 	if err != nil {
 		pkg.ResponseFromError(writer, err)
 		return
 	}
-	response = pkg.Response{
-		Data: map[string][]models.Task{
-			"tasks": tasks,
-		},
+	response.Data = map[string]any{
+		"tasks":    tasks,
+		"total":    total,
+		"per_page": listTaskQuery.PerPage,
+		"page":     listTaskQuery.Page,
 	}
+
 	pkg.ResponseJson(writer, http.StatusOK, &response)
 }
 
@@ -59,13 +62,13 @@ func (taskHandler *TaskHandler) Show(writer http.ResponseWriter, request *http.R
 }
 
 func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http.Request) {
-	var task models.Task
-	if err := json.NewDecoder(request.Body).Decode(&task); err != nil {
+	var createTaskRequest dto.CreateTaskRequest
+	if err := json.NewDecoder(request.Body).Decode(&createTaskRequest); err != nil {
 		pkg.ResponseError(writer, http.StatusBadRequest, "invalid body")
 		return
 	}
 
-	validationErrors, err := pkg.Validate(task)
+	validationErrors, err := pkg.Validate(createTaskRequest)
 	if err != nil {
 		pkg.ResponseError(writer, http.StatusInternalServerError, "internal server error")
 		return
@@ -74,6 +77,12 @@ func (taskHandler *TaskHandler) Create(writer http.ResponseWriter, request *http
 	if validationErrors != nil {
 		pkg.ResponseValidationError(writer, http.StatusUnprocessableEntity, validationErrors)
 		return
+	}
+
+	task := models.Task{
+		Title:       createTaskRequest.Title,
+		Description: createTaskRequest.Description,
+		Status:      createTaskRequest.Status,
 	}
 
 	created, err := taskHandler.taskService.Create(request.Context(), task)
@@ -97,14 +106,14 @@ func (taskHandler *TaskHandler) Update(writer http.ResponseWriter, request *http
 		return
 	}
 
-	var task models.Task
-	if err := json.NewDecoder(request.Body).Decode(&task); err != nil {
+	var updateTaskRequest dto.UpdateTaskRequest
+
+	if err := json.NewDecoder(request.Body).Decode(&updateTaskRequest); err != nil {
 		pkg.ResponseError(writer, http.StatusBadRequest, "invalid body")
 		return
 	}
-	task.Id = id
 
-	validationErrors, err := pkg.Validate(task)
+	validationErrors, err := pkg.Validate(updateTaskRequest)
 	if err != nil {
 		pkg.ResponseError(writer, http.StatusInternalServerError, "internal server error")
 		return
@@ -113,6 +122,13 @@ func (taskHandler *TaskHandler) Update(writer http.ResponseWriter, request *http
 	if validationErrors != nil {
 		pkg.ResponseValidationError(writer, http.StatusUnprocessableEntity, validationErrors)
 		return
+	}
+
+	task := models.Task{
+		Id:          id,
+		Title:       updateTaskRequest.Title,
+		Description: updateTaskRequest.Description,
+		Status:      updateTaskRequest.Status,
 	}
 
 	if err := taskHandler.taskService.Update(request.Context(), task); err != nil {

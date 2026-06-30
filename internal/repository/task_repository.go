@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"crud-task/internal/dto"
 	"crud-task/internal/models"
 	"crud-task/pkg/appError"
 	"fmt"
@@ -20,16 +21,43 @@ func NewTaskRepository(repository *BaseRepository) *TaskRepository {
 	}
 }
 
-func (taskRepository *TaskRepository) All(context context.Context) ([]models.Task, error) {
-	sql, args, err := dialect.From("tasks").Prepared(true).ToSQL()
+func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery dto.ListTaskQuery) ([]models.Task, int64, error) {
+	query := dialect.From("tasks")
+
+	if listTaskQuery.Status != nil {
+		query = query.Where(goqu.C("status").Eq(listTaskQuery.Status))
+	}
+
+	countSql, countArgs, err := query.Select(goqu.COUNT("id").As("total")).Prepared(true).ToSQL()
 	if err != nil {
-		return nil, fmt.Errorf("build all tasks query: %w", err)
+		return nil, 0, fmt.Errorf("build count tasks query: %w", err)
+	}
+	var total int64
+	if err := taskRepository.DBPool.QueryRow(context, countSql, countArgs...).Scan(&total); err != nil {
+		return nil, 0, MapError(err)
+	}
+
+	if listTaskQuery.Sort == "desc" {
+		query = query.Order(goqu.C("created_at").Desc())
+	} else {
+		query = query.Order(goqu.C("created_at").Asc())
+	}
+
+	offset := (listTaskQuery.Page - 1) * listTaskQuery.PerPage
+
+	sql, args, err := query.Offset(uint(offset)).
+		Limit(uint(listTaskQuery.PerPage)).
+		Prepared(true).
+		ToSQL()
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("build all tasks query: %w", err)
 	}
 
 	rows, err := taskRepository.DBPool.Query(context, sql, args...)
 
 	if err != nil {
-		return nil, MapError(err)
+		return nil, 0, MapError(err)
 	}
 
 	defer rows.Close()
@@ -42,12 +70,12 @@ func (taskRepository *TaskRepository) All(context context.Context) ([]models.Tas
 			&task.Id, &task.Title, &task.Description,
 			&task.Status, &task.CreatedAt, &task.UpdatedAt,
 		); err != nil {
-			return nil, MapError(err)
+			return nil, 0, MapError(err)
 		}
 		tasks = append(tasks, task)
 	}
 
-	return tasks, MapError(rows.Err())
+	return tasks, total, MapError(rows.Err())
 }
 
 func (taskRepository *TaskRepository) Show(ctx context.Context, id int64) (models.Task, error) {

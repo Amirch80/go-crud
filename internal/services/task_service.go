@@ -17,8 +17,8 @@ func NewTaskService(taskRepository *repository.TaskRepository) *TaskService {
 	}
 }
 
-func (taskService *TaskService) All(context context.Context) ([]models.Task, error) {
-	return taskService.taskRepository.All(context)
+func (taskService *TaskService) All(context context.Context, listTaskQuery dto.ListTaskQuery) ([]models.Task, int64, error) {
+	return taskService.taskRepository.All(context, listTaskQuery)
 }
 
 func (taskService *TaskService) Show(context context.Context, id int64) (models.Task, error) {
@@ -52,8 +52,8 @@ func (taskService *TaskService) Delete(context context.Context, id int64) (err e
 
 func (taskService *TaskService) GetStatusOptions() []dto.StatusOption {
 	return []dto.StatusOption{
-		{Value: int(models.Todo), Label: models.Todo.String()},
-		{Value: int(models.InProgress), Label: models.InProgress.String()},
-		{Value: int(models.Done), Label: models.Done.String()},
+		{Value: int(models.Todo), Label: models.Todo.String(), Slug: models.Todo.Slug()},
+		{Value: int(models.InProgress), Label: models.InProgress.String(), Slug: models.InProgress.Slug()},
+		{Value: int(models.Done), Label: models.Done.String(), Slug: models.Done.Slug()},
 	}
 }

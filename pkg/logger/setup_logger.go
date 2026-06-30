@@ -12,11 +12,17 @@ func openFile(path string) (*os.File, error) {
 }
 
 func setupLogger() (*slog.Logger, func(), error) {
+	basePath := "./logs/"
+
+	if os.Getenv("APP_ENV") == "development" {
+		basePath = "../../logs/"
+	}
+
 	paths := map[slog.Level]string{
-		slog.LevelDebug: "./logs/debug.log",
-		slog.LevelInfo:  "./logs/info.log",
-		slog.LevelWarn:  "./logs/warn.log",
-		slog.LevelError: "./logs/error.log",
+		slog.LevelDebug: basePath + "debug.log",
+		slog.LevelInfo:  basePath + "info.log",
+		slog.LevelWarn:  basePath + "warn.log",
+		slog.LevelError: basePath + "error.log",
 	}
 
 	var opened []*os.File
@@ -41,7 +47,7 @@ func setupLogger() (*slog.Logger, func(), error) {
 		files[level] = slog.NewJSONHandler(file, options)
 	}
 
-	other, err := openFile("./logs/other.log")
+	other, err := openFile(basePath + "other.log")
 	if err != nil {
 		other.Close()
 		return nil, nil, err

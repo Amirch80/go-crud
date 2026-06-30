@@ -29,6 +29,10 @@ func TestMain(m *testing.M) {
 		log.Fatal(err.Error())
 	}
 
+	if err := os.Setenv("APP_ENV", "development"); err != nil {
+		log.Fatal(err.Error())
+	}
+
 	closeLogs, err := logger.Init()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
@@ -43,12 +47,12 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	testDB = db
-
-	if _, err := db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`); err != nil {
-		closeLogs()
-		db.Close()
-		log.Fatalf("failed to truncate tasks: %v", err)
-	}
+	//
+	//if _, err := db.Exec(ctx, `TRUNCATE tasks RESTART IDENTITY CASCADE`); err != nil {
+	//	closeLogs()
+	//	db.Close()
+	//	log.Fatalf("failed to truncate tasks: %v", err)
+	//}
 
 	app := setupApp(db)
 	testServer = httptest.NewServer(app)

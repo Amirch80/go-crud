@@ -24,7 +24,7 @@ func TestAllTasks(t *testing.T) {
 			Rows(goqu.Record{
 				"title":       pkg.RandomString(10),
 				"description": pkg.RandomString(100),
-				"status":      models.Todo,
+				"status":      models.Done,
 				"created_at":  goqu.L("NOW()"),
 				"updated_at":  goqu.L("NOW()"),
 			}).
@@ -36,9 +36,11 @@ func TestAllTasks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to insert task: %v", err)
 		}
+
+		time.Sleep(3 * time.Second)
 	}
 
-	response, err := http.Get(testServer.URL + "/api/tasks")
+	response, err := http.Get(testServer.URL + "/api/tasks?sort=asc&page=2")
 
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -51,7 +53,10 @@ func TestAllTasks(t *testing.T) {
 
 	type TasksResponse struct {
 		Data struct {
-			Tasks []models.Task `json:"tasks"`
+			Tasks   []models.Task `json:"tasks"`
+			Total   int64         `json:"total"`
+			PerPage int64         `json:"per_page"`
+			Page    int64         `json:"page"`
 		} `json:"data"`
 	}
 
@@ -73,7 +78,7 @@ func TestCreateTask(t *testing.T) {
 	task := models.Task{
 		Title:       pkg.RandomString(10),
 		Description: pkg.RandomString(50),
-		Status:      6,
+		Status:      models.Todo,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
