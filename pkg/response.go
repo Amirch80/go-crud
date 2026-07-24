@@ -16,7 +16,9 @@ type Response struct {
 }
 
 func ResponseJson(writer http.ResponseWriter, status int, response *Response) {
-	writer.Header().Set("Content-Type", "application/json")
+	if !Contains([]int{http.StatusNoContent}, status) {
+		writer.Header().Set("Content-Type", "application/json")
+	}
 	writer.WriteHeader(status)
 	if response != nil {
 		_ = json.NewEncoder(writer).Encode(response)

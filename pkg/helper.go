@@ -4,9 +4,20 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
+	"strings"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+func toSnakeCase(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
 
 func MakeDSN() string {
 	return fmt.Sprintf(
@@ -26,4 +37,13 @@ func RandomString(n int) string {
 		chars[i] = alphabet[rand.Intn(len(alphabet))]
 	}
 	return string(chars)
+}
+
+func Contains[T comparable](elements []T, value T) bool {
+	for _, element := range elements {
+		if element == value {
+			return true
+		}
+	}
+	return false
 }

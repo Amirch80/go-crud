@@ -21,7 +21,7 @@ func formatValidationError(err error) (map[string]string, error) {
 	}
 	messages := make(map[string]string, len(validationError))
 	for _, field := range validationError {
-		messages[field.Field()] = formatMessage(field)
+		messages[toSnakeCase(field.Field())] = formatMessage(field)
 	}
 	return messages, nil
 }

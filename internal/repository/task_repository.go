@@ -27,7 +27,6 @@ func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery
 	if listTaskQuery.Status != nil {
 		query = query.Where(
 			goqu.C("status").Eq(listTaskQuery.Status),
-			goqu.C("deleted_at").IsNull(),
 		)
 	}
 
@@ -49,6 +48,7 @@ func (taskRepository *TaskRepository) All(context context.Context, listTaskQuery
 	offset := (listTaskQuery.Page - 1) * listTaskQuery.PerPage
 
 	sql, args, err := query.Select("id", "title", "description", "status", "created_at", "updated_at").
+		Where(goqu.C("deleted_at").IsNull()).
 		Offset(uint(offset)).
 		Limit(uint(listTaskQuery.PerPage)).
 		Prepared(true).

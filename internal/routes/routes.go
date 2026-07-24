@@ -2,6 +2,7 @@ package routes
 
 import (
 	"crud-task/internal/container"
+	"crud-task/internal/middleware"
 	"net/http"
 )
 
@@ -37,7 +38,7 @@ func (group *RouteGroup) DELETE(path string, handler http.HandlerFunc) {
 	group.handle(http.MethodDelete, path, handler)
 }
 
-func Routes(container *container.Container) *http.ServeMux {
+func Routes(container *container.Container) http.Handler {
 	multiplexer := http.NewServeMux()
 
 	api := newRouteGroup(multiplexer, "/api")
@@ -47,6 +48,7 @@ func Routes(container *container.Container) *http.ServeMux {
 	api.PUT("/tasks/{id}", container.TaskHandler.Update)
 	api.DELETE("/tasks/{id}", container.TaskHandler.SoftDelete)
 	api.DELETE("/tasks/{id}/force", container.TaskHandler.Delete)
+	api.GET("/tasks/statuses", container.TaskHandler.StatusOptions)
 
-	return multiplexer
+	return middleware.CORS(multiplexer)
 }
